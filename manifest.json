@@ -2,7 +2,7 @@
   "name": "搬家日記",
   "short_name": "搬家日記",
   "description": "搬家打包進度紀錄，慢慢來，會打包好的。",
-  "start_url": "./packing-cloud.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f6efe1",
