@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>搬家日記 · 雲端共用版</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#f6efe1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="搬家日記">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6efe1; --paper-soft: #fbf6ea; --paper-deep: #ede2c6;
+    --ink: #2a1f17; --ink-soft: #5d4b3a; --ink-faint: #8d7a64;
+    --hairline: #e3d6bc; --terra: #b9603a; --terra-deep: #984a2a;
+    --sage: #7e8b65; --amber: #c98a3f; --error: #b04040;
+    --shadow: 0 1px 0 rgba(42,31,23,0.04), 0 8px 24px -12px rgba(42,31,23,0.18);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+    font-family: "Noto Sans TC", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(185,96,58,0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(126,139,101,0.04) 0%, transparent 50%);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.12 0 0 0 0 0.09 0 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.6; mix-blend-mode: multiply;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 520px; margin: 0 auto; padding: 28px 22px 80px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .brand { font-size: 11px; letter-spacing: 0.4em; color: var(--ink-faint); text-transform: uppercase; margin-bottom: 14px; }
+  .doc-title { font-family: "Noto Serif TC", serif; font-weight: 600; font-size: 26px; color: var(--ink); margin: 0 0 18px; }
+
+  /* AUTH */
+  #view-auth, #view-setup { padding-top: 40px; }
+  .auth-tabs { display: flex; gap: 24px; margin-bottom: 22px; }
+  .auth-tab {
+    background: none; border: none; padding: 6px 0;
+    font-family: "Noto Serif TC", serif; font-size: 17px;
+    color: var(--ink-faint); cursor: pointer; position: relative;
+  }
+  .auth-tab.active { color: var(--ink); font-weight: 600; }
+  .auth-tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: var(--terra); }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-family: "Noto Serif TC", serif; font-size: 12px;
+    color: var(--ink-faint); letter-spacing: 0.15em; margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%; font-family: "Noto Serif TC", serif; font-size: 16px;
+    padding: 12px 14px; background: var(--paper-soft);
+    border: 1px solid var(--hairline); color: var(--ink); outline: none;
+  }
+  .field input:focus { border-color: var(--terra); }
+
+  .primary-btn {
+    width: 100%; padding: 14px; background: var(--ink); color: var(--paper);
+    border: none; font-family: "Noto Serif TC", serif; font-size: 15px;
+    letter-spacing: 0.1em; cursor: pointer; margin-top: 6px;
+  }
+  .primary-btn:active { background: var(--terra); }
+  .primary-btn:disabled { opacity: 0.5; cursor: wait; }
+
+  .ghost-btn {
+    width: 100%; padding: 12px; background: transparent; color: var(--ink-soft);
+    border: 1px dashed var(--hairline); font-family: "Noto Serif TC", serif;
+    font-size: 14px; cursor: pointer; margin-top: 10px;
+  }
+  .ghost-btn:active { border-color: var(--terra); color: var(--terra); }
+
+  .error-msg { color: var(--error); font-family: "Noto Serif TC", serif; font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .info-msg  { color: var(--sage);  font-family: "Noto Serif TC", serif; font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+  /* SETUP */
+  .setup-greet { font-family: "Noto Serif TC", serif; font-size: 14px; color: var(--ink-soft); margin-bottom: 24px; }
+  .setup-card { background: var(--paper-soft); border: 1px solid var(--hairline); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .setup-card h3 { margin: 0 0 14px; font-family: "Noto Serif TC", serif; font-size: 17px; font-weight: 600; }
+  .setup-divider { text-align: center; margin: 22px 0; font-family: "Noto Serif TC", serif; color: var(--ink-faint); font-size: 12px; letter-spacing: 0.3em; }
+  .code-input { text-transform: uppercase; letter-spacing: 0.3em; font-size: 20px !important; text-align: center; font-family: "Noto Serif TC", serif !important; }
+
+  /* MAIN */
+  .header { margin-bottom: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--hairline); }
+  .title-input {
+    font-family: "Noto Serif TC", serif; font-weight: 600; font-size: 28px;
+    color: var(--ink); background: transparent; border: none;
+    border-bottom: 1px dashed var(--hairline); width: 100%; padding: 2px 0; outline: none;
+  }
+  .title-input:focus { border-bottom-color: var(--terra); }
+  .date-row { display: flex; align-items: baseline; gap: 14px; margin-top: 14px; font-family: "Noto Serif TC", serif; }
+  .date-row label { font-size: 12px; color: var(--ink-faint); letter-spacing: 0.15em; }
+  .date-row input[type=date] {
+    font-family: "Noto Serif TC", serif; font-size: 15px; color: var(--ink);
+    background: transparent; border: none; border-bottom: 1px dashed var(--hairline);
+    padding: 2px 0; outline: none;
+  }
+  .countdown { margin-left: auto; font-family: "Noto Serif TC", serif; text-align: right; }
+  .countdown .num { font-size: 26px; font-weight: 600; color: var(--terra); line-height: 1; }
+  .countdown .label { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.25em; margin-top: 2px; }
+
+  .invite-banner {
+    background: var(--paper-soft); border: 1px dashed var(--terra);
+    padding: 12px 16px; margin-bottom: 24px; font-family: "Noto Serif TC", serif;
+    display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background 0.15s;
+  }
+  .invite-banner:active { background: var(--paper-deep); }
+  .invite-banner .lbl { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.2em; }
+  .invite-banner .code { font-size: 20px; font-weight: 600; letter-spacing: 0.25em; color: var(--terra); }
+  .invite-banner .hint { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
+
+  section { margin-bottom: 30px; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .sec-title { font-family: "Noto Serif TC", serif; font-size: 18px; font-weight: 600; color: var(--ink); display: flex; align-items: baseline; gap: 10px; }
+  .sec-title::before { content: ""; width: 6px; height: 6px; background: var(--terra); display: inline-block; transform: translateY(-2px); }
+  .sec-meta { font-size: 12px; color: var(--ink-faint); font-family: "Noto Serif TC", serif; }
+
+  .today-card { background: var(--paper-soft); border: 1px solid var(--hairline); padding: 14px 18px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px; font-family: "Noto Serif TC", serif; }
+  .today-card .lbl { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.25em; }
+  .today-card .nums { margin-left: auto; font-size: 14px; color: var(--ink-soft); }
+  .today-card .nums span { font-size: 18px; color: var(--terra); font-weight: 600; margin: 0 2px; }
+  .today-card .quiet { color: var(--ink-faint); font-style: italic; }
+
+  .totals { background: var(--paper-soft); border: 1px solid var(--hairline); padding: 18px 18px 16px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px; }
+  .totals .big { font-family: "Noto Serif TC", serif; font-size: 42px; font-weight: 600; color: var(--ink); line-height: 1; }
+  .totals .lbl { font-size: 11px; letter-spacing: 0.25em; color: var(--ink-faint); margin-top: 6px; }
+  .totals .breakdown { margin-left: auto; text-align: right; font-family: "Noto Serif TC", serif; font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
+  .totals .breakdown span { color: var(--terra); font-weight: 500; }
+
+  .room { background: var(--paper-soft); border: 1px solid var(--hairline); padding: 16px 16px 14px; margin-bottom: 10px; box-shadow: var(--shadow); position: relative; }
+  .room-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px; }
+  .room-name { font-family: "Noto Serif TC", serif; font-size: 17px; font-weight: 500; color: var(--ink); background: transparent; border: none; outline: none; padding: 0; flex: 1; min-width: 0; }
+  .room-pct { font-family: "Noto Serif TC", serif; font-size: 18px; font-weight: 600; color: var(--terra); min-width: 50px; text-align: right; }
+  .room-pct.done { color: var(--sage); }
+  .room-del { background: none; border: none; color: var(--ink-faint); font-size: 18px; cursor: pointer; padding: 4px 6px; line-height: 1; }
+  .room-del:active { color: var(--terra); }
+
+  .progress-wrap { position: relative; height: 24px; display: flex; align-items: center; margin-bottom: 6px; }
+  .progress-track { position: absolute; left: 0; right: 0; height: 6px; background: var(--paper-deep); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--amber), var(--terra)); transition: width 0.3s ease; border-radius: 3px; }
+  .progress-fill.done { background: linear-gradient(90deg, var(--sage), #5d6e4a); }
+  .room-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; background: transparent; position: relative; z-index: 2; margin: 0; }
+  .room-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--paper-soft); border: 2px solid var(--terra); cursor: pointer; box-shadow: 0 2px 6px rgba(42,31,23,0.18); }
+  .room-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--paper-soft); border: 2px solid var(--terra); cursor: pointer; }
+
+  .room-boxes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; padding-top: 12px; border-top: 1px dotted var(--hairline); }
+  .rb-cell { background: var(--paper); border: 1px solid var(--hairline); border-radius: 2px; padding: 8px 6px 6px; text-align: center; }
+  .rb-size { font-family: "Noto Serif TC", serif; font-size: 12px; color: var(--ink-faint); letter-spacing: 0.1em; margin-bottom: 2px; }
+  .rb-count { font-family: "Noto Serif TC", serif; font-size: 24px; font-weight: 600; line-height: 1; color: var(--terra); margin-bottom: 6px; }
+  .rb-btns { display: flex; gap: 4px; justify-content: center; }
+  .rb-btn { flex: 1; height: 28px; border: 1px solid var(--hairline); background: var(--paper-soft); color: var(--ink); font-family: "Noto Serif TC", serif; font-size: 15px; font-weight: 500; border-radius: 2px; cursor: pointer; transition: all 0.15s; padding: 0; }
+  .rb-btn:active { background: var(--terra); color: var(--paper-soft); border-color: var(--terra); }
+  .rb-btn.minus { color: var(--ink-faint); }
+  .rb-totals-line { margin-top: 10px; font-family: "Noto Serif TC", serif; font-size: 12px; color: var(--ink-faint); text-align: center; }
+  .rb-totals-line strong { color: var(--ink); font-weight: 600; }
+
+  .add-room { display: flex; gap: 8px; margin-top: 12px; }
+  .add-room input { flex: 1; font-family: "Noto Serif TC", serif; font-size: 15px; padding: 12px 14px; background: var(--paper-soft); border: 1px dashed var(--hairline); color: var(--ink); outline: none; }
+  .add-room input:focus { border-color: var(--terra); border-style: solid; }
+  .add-room button { padding: 0 18px; background: var(--ink); color: var(--paper); border: none; font-family: "Noto Serif TC", serif; font-size: 14px; letter-spacing: 0.1em; cursor: pointer; }
+  .add-room button:active { background: var(--terra); }
+
+  .history-toggle { width: 100%; background: transparent; border: none; border-top: 1px solid var(--hairline); padding: 16px 0 8px; text-align: left; font-family: "Noto Serif TC", serif; font-size: 14px; color: var(--ink-soft); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .history-toggle .arrow { transition: transform 0.2s; color: var(--ink-faint); }
+  .history-toggle.open .arrow { transform: rotate(90deg); }
+  .history-list { display: none; margin-top: 8px; }
+  .history-list.open { display: block; }
+  .history-row { display: flex; justify-content: space-between; padding: 10px 0; font-family: "Noto Serif TC", serif; font-size: 13px; border-bottom: 1px dotted var(--hairline); }
+  .history-row .date { color: var(--ink-soft); }
+  .history-row .nums { color: var(--ink); }
+  .history-row .nums span { color: var(--terra); font-weight: 500; }
+
+  .footer { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--hairline); text-align: center; font-family: "Noto Serif TC", serif; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.15em; }
+  .footer .small-btn { background: none; border: none; color: var(--ink-faint); font-size: 11px; letter-spacing: 0.15em; font-family: inherit; cursor: pointer; margin: 0 6px; }
+  .footer .small-btn:active { color: var(--terra); }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--paper); padding: 10px 18px;
+    font-family: "Noto Serif TC", serif; font-size: 14px;
+    border-radius: 2px; box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4);
+    opacity: 0; transition: all 0.25s ease; z-index: 100; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* LOADING */
+  .loading { padding: 100px 0; text-align: center; font-family: "Noto Serif TC", serif; color: var(--ink-faint); font-size: 14px; letter-spacing: 0.2em; }
+
+  @keyframes flash { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.15); color: var(--terra-deep); } }
+  .flash { animation: flash 0.35s ease; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Loading -->
+  <div class="view active" id="view-loading">
+    <div class="loading">載入中⋯</div>
+  </div>
+
+  <!-- Auth -->
+  <div class="view" id="view-auth">
+    <div class="brand">PACKING · 日 日 整 理</div>
+    <h1 class="doc-title">搬家日記</h1>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="signin">登入</button>
+      <button class="auth-tab" data-tab="signup">註冊</button>
+    </div>
+    <div class="field">
+      <label>EMAIL</label>
+      <input type="email" id="auth-email" autocomplete="email" />
+    </div>
+    <div class="field">
+      <label>密碼</label>
+      <input type="password" id="auth-password" autocomplete="current-password" />
+    </div>
+    <button class="primary-btn" id="auth-submit">登入</button>
+    <div class="error-msg" id="auth-error"></div>
+    <div class="info-msg" id="auth-info"></div>
+  </div>
+
+  <!-- Project Setup -->
+  <div class="view" id="view-setup">
+    <div class="brand">PACKING · 日 日 整 理</div>
+    <h1 class="doc-title">建立或加入</h1>
+    <div class="setup-greet" id="setup-greet"></div>
+
+    <div class="setup-card">
+      <h3>建立新搬家計畫</h3>
+      <div class="field">
+        <label>計畫名稱</label>
+        <input id="new-project-name" value="我的搬家計畫" />
+      </div>
+      <div class="field">
+        <label>搬家日（可之後再設）</label>
+        <input type="date" id="new-project-date" />
+      </div>
+      <button class="primary-btn" id="create-project-btn">建立計畫</button>
+    </div>
+
+    <div class="setup-divider">或</div>
+
+    <div class="setup-card">
+      <h3>用邀請碼加入</h3>
+      <div class="field">
+        <label>6 碼邀請碼</label>
+        <input class="code-input" id="invite-code-input" maxlength="6" />
+      </div>
+      <button class="primary-btn" id="join-project-btn">加入</button>
+    </div>
+
+    <div class="error-msg" id="setup-error"></div>
+
+    <button class="ghost-btn" id="setup-signout">登出</button>
+  </div>
+
+  <!-- Main -->
+  <div class="view" id="view-main">
+    <header class="header">
+      <div class="brand">PACKING · 日 日 整 理</div>
+      <input class="title-input" id="projectName" placeholder="我的搬家計畫" />
+      <div class="date-row">
+        <label>搬家日</label>
+        <input type="date" id="moveDate" />
+        <div class="countdown">
+          <div class="num" id="countdownNum">—</div>
+          <div class="label">DAYS</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="invite-banner" id="invite-banner">
+      <span class="lbl">邀請碼</span>
+      <span class="code" id="invite-code">——————</span>
+      <span class="hint">點擊複製 →</span>
+    </div>
+
+    <section>
+      <div class="sec-head">
+        <div class="sec-title">已打包紙箱</div>
+        <div class="sec-meta">所有房間加總</div>
+      </div>
+      <div class="totals">
+        <div>
+          <div class="big" id="totalAll">0</div>
+          <div class="lbl">TOTAL BOXES</div>
+        </div>
+        <div class="breakdown">
+          大 <span id="totalLarge">0</span><br>
+          中 <span id="totalMedium">0</span><br>
+          小 <span id="totalSmall">0</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="sec-title">今日新增</div>
+        <div class="sec-meta" id="todayLabel">—</div>
+      </div>
+      <div class="today-card">
+        <div class="lbl">TODAY</div>
+        <div class="nums" id="todayNums"><span class="quiet">尚未打包</span></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="sec-title">房間進度</div>
+        <div class="sec-meta" id="avgProgress">平均 0%</div>
+      </div>
+      <div id="roomsList"></div>
+      <div class="add-room">
+        <input id="newRoomInput" placeholder="新增空間，例如：陽台" />
+        <button id="addRoomBtn">加入</button>
+      </div>
+    </section>
+
+    <button class="history-toggle" id="historyToggle">
+      <span>每日紀錄</span>
+      <span class="arrow">›</span>
+    </button>
+    <div class="history-list" id="historyList"></div>
+
+    <div class="footer">
+      搬家日記 · 慢慢來，會打包好的
+      <br>
+      <button class="small-btn" id="main-signout">登出</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  // ============================================================
+  // Supabase 設定
+  // ============================================================
+  const SUPABASE_URL = 'https://djshurxgiugedmqwhtuj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_60y_fLyXfv547b71kQAWRg_1gcMVDZG';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ============================================================
+  // Service Worker（PWA 離線殼層）
+  // ============================================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((err) => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+
+  // ============================================================
+  // 狀態
+  // ============================================================
+  const state = {
+    session: null,
+    project: null,
+    rooms: [],
+    logs: {}, // { 'YYYY-MM-DD': { large_boxes, medium_boxes, small_boxes } }
+  };
+  let realtimeChannel = null;
+
+  // ============================================================
+  // Utility
+  // ============================================================
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ============================================================
+  // 路由
+  // ============================================================
+  async function route() {
+    if (!state.session) {
+      cleanupAfterSignOut();
+      showView('view-auth');
+      return;
+    }
+    // 找出此使用者所屬的計畫（取最早加入的那個）
+    const { data: memberships, error } = await supabase
+      .from('move_members')
+      .select('project_id, joined_at')
+      .order('joined_at', { ascending: true })
+      .limit(1);
+    if (error) { console.error(error); showToast('讀取資料失敗：' + error.message); return; }
+    if (!memberships || memberships.length === 0) {
+      document.getElementById('setup-greet').textContent = `${state.session.user.email}`;
+      showView('view-setup');
+      return;
+    }
+    try {
+      await loadProject(memberships[0].project_id);
+      renderMain();
+      showView('view-main');
+    } catch (e) {
+      console.error(e);
+      showToast('載入計畫失敗');
+    }
+  }
+
+  function cleanupAfterSignOut() {
+    state.project = null;
+    state.rooms = [];
+    state.logs = {};
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+  }
+
+  // ============================================================
+  // 計畫載入
+  // ============================================================
+  async function loadProject(projectId) {
+    const { data: project, error: e1 } = await supabase
+      .from('move_projects').select('*').eq('id', projectId).single();
+    if (e1) throw e1;
+    state.project = project;
+
+    const { data: rooms, error: e2 } = await supabase
+      .from('packing_rooms').select('*').eq('project_id', projectId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (e2) throw e2;
+    state.rooms = rooms || [];
+
+    const { data: logs, error: e3 } = await supabase
+      .from('packing_logs').select('*').eq('project_id', projectId);
+    if (e3) throw e3;
+    state.logs = {};
+    for (const l of (logs || [])) state.logs[l.log_date] = l;
+
+    subscribeRealtime(projectId);
+  }
+
+  function subscribeRealtime(projectId) {
+    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+    realtimeChannel = supabase
+      .channel(`pkg-${projectId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'packing_rooms', filter: `project_id=eq.${projectId}` }, async () => {
+        const { data } = await supabase.from('packing_rooms').select('*')
+          .eq('project_id', projectId).order('sort_order').order('created_at');
+        state.rooms = data || [];
+        renderRooms(); renderTotals();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'packing_logs', filter: `project_id=eq.${projectId}` }, async () => {
+        const { data } = await supabase.from('packing_logs').select('*').eq('project_id', projectId);
+        state.logs = {};
+        for (const l of (data || [])) state.logs[l.log_date] = l;
+        renderTodaySummary(); renderHistory();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'move_projects', filter: `id=eq.${projectId}` }, (payload) => {
+        state.project = payload.new;
+        renderHeader();
+      })
+      .subscribe();
+  }
+
+  // ============================================================
+  // Auth
+  // ============================================================
+  async function handleAuthSubmit(mode) {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errEl = document.getElementById('auth-error');
+    const infoEl = document.getElementById('auth-info');
+    errEl.textContent = ''; infoEl.textContent = '';
+    if (!email || !password) { errEl.textContent = '請輸入信箱與密碼'; return; }
+    if (mode === 'signup' && password.length < 6) { errEl.textContent = '密碼至少 6 個字'; return; }
+
+    const btn = document.getElementById('auth-submit');
+    btn.disabled = true;
+    try {
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        infoEl.textContent = '註冊成功！請繼續⋯';
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (e) {
+      errEl.textContent = translateAuthError(e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function translateAuthError(msg) {
+    if (!msg) return '發生錯誤';
+    if (msg.includes('Invalid login')) return '信箱或密碼錯誤';
+    if (msg.includes('already registered')) return '此信箱已註冊，請改用登入';
+    if (msg.includes('Email not confirmed')) return '信箱尚未驗證，請去 Supabase 設定關閉驗證，或檢查信箱';
+    if (msg.includes('rate limit')) return '操作太頻繁，請稍候再試';
+    return msg;
+  }
+
+  // ============================================================
+  // 計畫建立 / 加入
+  // ============================================================
+  async function handleCreateProject() {
+    const name = document.getElementById('new-project-name').value.trim() || '我的搬家計畫';
+    const dateVal = document.getElementById('new-project-date').value || null;
+    const errEl = document.getElementById('setup-error');
+    errEl.textContent = '';
+
+    try {
+      const { data: project, error: e1 } = await supabase
+        .from('move_projects')
+        .insert({ name, move_date: dateVal, owner_id: state.session.user.id })
+        .select().single();
+      if (e1) throw e1;
+
+      const defaults = ['客廳','書房','臥室','儲藏室','廚房','浴室'];
+      const { error: e2 } = await supabase.from('packing_rooms').insert(
+        defaults.map((n, i) => ({ project_id: project.id, name: n, sort_order: i }))
+      );
+      if (e2) throw e2;
+
+      await loadProject(project.id);
+      renderMain();
+      showView('view-main');
+    } catch (e) {
+      console.error(e);
+      errEl.textContent = '建立失敗：' + e.message;
+    }
+  }
+
+  async function handleJoinProject() {
+    const code = document.getElementById('invite-code-input').value.trim().toUpperCase();
+    const errEl = document.getElementById('setup-error');
+    errEl.textContent = '';
+    if (code.length !== 6) { errEl.textContent = '請輸入 6 碼邀請碼'; return; }
+
+    try {
+      const { data: projectId, error } = await supabase.rpc('join_project_with_code', { p_code: code });
+      if (error) throw error;
+      await loadProject(projectId);
+      renderMain();
+      showView('view-main');
+    } catch (e) {
+      console.error(e);
+      errEl.textContent = '加入失敗：' + (e.message.includes('無效') ? '邀請碼無效' : e.message);
+    }
+  }
+
+  // ============================================================
+  // 資料操作（房間、箱數、日誌）
+  // ============================================================
+  async function changeBox(roomId, size, delta) {
+    const room = state.rooms.find(r => r.id === roomId);
+    if (!room) return;
+    const col = `${size}_boxes`;
+    const newVal = Math.max(0, (room[col] || 0) + delta);
+    if (newVal === (room[col] || 0)) return;
+
+    // Optimistic local update
+    room[col] = newVal;
+    const today = todayStr();
+    if (!state.logs[today]) {
+      state.logs[today] = { project_id: state.project.id, log_date: today, large_boxes: 0, medium_boxes: 0, small_boxes: 0 };
+    }
+    state.logs[today][col] = Math.max(0, (state.logs[today][col] || 0) + delta);
+    renderRooms(); renderTotals(); renderTodaySummary(); renderHistory();
+
+    // Persist
+    try {
+      const [r1, r2] = await Promise.all([
+        supabase.from('packing_rooms').update({ [col]: newVal }).eq('id', roomId),
+        supabase.from('packing_logs').upsert({
+          project_id: state.project.id,
+          log_date: today,
+          large_boxes: state.logs[today].large_boxes,
+          medium_boxes: state.logs[today].medium_boxes,
+          small_boxes: state.logs[today].small_boxes,
+        }, { onConflict: 'project_id,log_date' }),
+      ]);
+      if (r1.error) throw r1.error;
+      if (r2.error) throw r2.error;
+    } catch (e) {
+      console.error(e);
+      showToast('儲存失敗，重新載入中⋯');
+      try { await loadProject(state.project.id); renderMain(); } catch {}
+    }
+  }
+
+  async function updateRoomField(roomId, field, value) {
+    const room = state.rooms.find(r => r.id === roomId);
+    if (!room) return;
+    room[field] = value;
+    const { error } = await supabase.from('packing_rooms').update({ [field]: value }).eq('id', roomId);
+    if (error) { console.error(error); showToast('儲存失敗'); }
+  }
+
+  async function addRoom(name) {
+    const maxSort = state.rooms.reduce((a, r) => Math.max(a, r.sort_order || 0), 0);
+    const { error } = await supabase.from('packing_rooms').insert({
+      project_id: state.project.id, name, sort_order: maxSort + 1,
+    });
+    if (error) { console.error(error); showToast('新增失敗'); }
+  }
+
+  async function deleteRoom(roomId) {
+    const { error } = await supabase.from('packing_rooms').delete().eq('id', roomId);
+    if (error) { console.error(error); showToast('刪除失敗'); }
+  }
+
+  async function updateProjectField(field, value) {
+    state.project[field] = value;
+    const { error } = await supabase.from('move_projects').update({ [field]: value }).eq('id', state.project.id);
+    if (error) { console.error(error); showToast('儲存失敗'); }
+  }
+
+  // ============================================================
+  // Render
+  // ============================================================
+  function renderMain() {
+    renderHeader();
+    renderInviteBanner();
+    renderTotals();
+    renderTodaySummary();
+    renderRooms();
+    renderHistory();
+  }
+
+  function renderHeader() {
+    if (!state.project) return;
+    document.getElementById('projectName').value = state.project.name || '';
+    document.getElementById('moveDate').value = state.project.move_date || '';
+    document.getElementById('todayLabel').textContent = todayStr().replace(/-/g,' / ');
+    renderCountdown();
+  }
+
+  function renderCountdown() {
+    const el = document.getElementById('countdownNum');
+    if (!state.project?.move_date) { el.textContent = '—'; return; }
+    const target = new Date(state.project.move_date + 'T00:00:00');
+    const now = new Date(); now.setHours(0,0,0,0);
+    const diff = Math.round((target - now) / 86400000);
+    el.textContent = diff >= 0 ? diff : `+${-diff}`;
+    el.style.color = diff < 7 ? 'var(--terra-deep)' : 'var(--terra)';
+  }
+
+  function renderInviteBanner() {
+    document.getElementById('invite-code').textContent = state.project?.invite_code || '——————';
+  }
+
+  function renderTotals() {
+    let l = 0, m = 0, s = 0;
+    state.rooms.forEach(r => { l += r.large_boxes || 0; m += r.medium_boxes || 0; s += r.small_boxes || 0; });
+    document.getElementById('totalLarge').textContent = l;
+    document.getElementById('totalMedium').textContent = m;
+    document.getElementById('totalSmall').textContent = s;
+    document.getElementById('totalAll').textContent = l + m + s;
+  }
+
+  function renderTodaySummary() {
+    const today = todayStr();
+    const t = state.logs[today] || { large_boxes:0, medium_boxes:0, small_boxes:0 };
+    const sum = t.large_boxes + t.medium_boxes + t.small_boxes;
+    const el = document.getElementById('todayNums');
+    if (sum === 0) el.innerHTML = '<span class="quiet">尚未打包</span>';
+    else el.innerHTML = `大 <span>${t.large_boxes}</span>　中 <span>${t.medium_boxes}</span>　小 <span>${t.small_boxes}</span>　共 <span>${sum}</span> 箱`;
+  }
+
+  const SIZES = [
+    { key: 'large',  label: '大' },
+    { key: 'medium', label: '中' },
+    { key: 'small',  label: '小' },
+  ];
+
+  function renderRooms() {
+    const list = document.getElementById('roomsList');
+    list.innerHTML = '';
+    state.rooms.forEach(r => {
+      const done = r.progress >= 100;
+      const roomSum = (r.large_boxes||0) + (r.medium_boxes||0) + (r.small_boxes||0);
+      const row = document.createElement('div');
+      row.className = 'room';
+      row.innerHTML = `
+        <div class="room-top">
+          <input class="room-name" value="${escapeHtml(r.name)}" data-id="${r.id}" />
+          <div class="room-pct ${done?'done':''}">${r.progress}%</div>
+          <button class="room-del" data-id="${r.id}" aria-label="刪除">×</button>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill ${done?'done':''}" style="width:${r.progress}%"></div>
+          </div>
+          <input type="range" class="room-slider" min="0" max="100" step="5" value="${r.progress}" data-id="${r.id}" />
+        </div>
+        <div class="room-boxes">
+          ${SIZES.map(sz => `
+            <div class="rb-cell">
+              <div class="rb-size">${sz.label}</div>
+              <div class="rb-count" id="rbc-${r.id}-${sz.key}">${r[sz.key+'_boxes'] || 0}</div>
+              <div class="rb-btns">
+                <button class="rb-btn minus" data-room="${r.id}" data-size="${sz.key}" data-act="dec">−</button>
+                <button class="rb-btn"       data-room="${r.id}" data-size="${sz.key}" data-act="inc">＋</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="rb-totals-line">本室共 <strong>${roomSum}</strong> 箱</div>
+      `;
+      list.appendChild(row);
+    });
+
+    // sliders
+    list.querySelectorAll('.room-slider').forEach(s => {
+      s.addEventListener('input', e => {
+        const id = e.target.dataset.id;
+        const room = state.rooms.find(x => x.id === id);
+        if (!room) return;
+        const newProg = parseInt(e.target.value, 10);
+        room.progress = newProg;
+        // local-only visual update
+        const wrap = e.target.closest('.room');
+        const fill = wrap.querySelector('.progress-fill');
+        const pctEl = wrap.querySelector('.room-pct');
+        const done = newProg >= 100;
+        fill.style.width = newProg + '%';
+        fill.classList.toggle('done', done);
+        pctEl.textContent = newProg + '%';
+        pctEl.classList.toggle('done', done);
+        renderAvg();
+      });
+      s.addEventListener('change', e => {
+        // persist on slider release
+        const id = e.target.dataset.id;
+        const room = state.rooms.find(x => x.id === id);
+        if (room) updateRoomField(id, 'progress', room.progress);
+      });
+    });
+    list.querySelectorAll('.room-name').forEach(n => {
+      n.addEventListener('change', e => {
+        const id = e.target.dataset.id;
+        const name = e.target.value.trim() || '未命名';
+        updateRoomField(id, 'name', name);
+      });
+    });
+    list.querySelectorAll('.room-del').forEach(b => {
+      b.addEventListener('click', e => {
+        const id = e.target.dataset.id;
+        if (!confirm('刪除這個空間？該空間的箱數紀錄會一起移除。')) return;
+        deleteRoom(id);
+      });
+    });
+    list.querySelectorAll('.rb-btn').forEach(b => {
+      b.addEventListener('click', e => {
+        const id = e.target.dataset.room;
+        const size = e.target.dataset.size;
+        const act = e.target.dataset.act;
+        const delta = act === 'inc' ? 1 : -1;
+        const cell = document.getElementById(`rbc-${id}-${size}`);
+        if (cell && act === 'inc') {
+          cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
+        }
+        changeBox(id, size, delta);
+      });
+    });
+
+    renderAvg();
+  }
+
+  function renderAvg() {
+    const el = document.getElementById('avgProgress');
+    if (state.rooms.length === 0) { el.textContent = '尚未設定'; return; }
+    const sum = state.rooms.reduce((a,r) => a + (r.progress || 0), 0);
+    el.textContent = `平均 ${Math.round(sum / state.rooms.length)}%`;
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    const days = Object.entries(state.logs)
+      .filter(([_, v]) => (v.large_boxes + v.medium_boxes + v.small_boxes) > 0)
+      .sort((a,b) => b[0].localeCompare(a[0]));
+    if (days.length === 0) {
+      list.innerHTML = '<div style="padding:14px 0;color:var(--ink-faint);font-family:Noto Serif TC,serif;font-size:13px;">還沒有紀錄</div>';
+      return;
+    }
+    list.innerHTML = days.map(([date, v]) => `
+      <div class="history-row">
+        <span class="date">${date.replace(/-/g,' / ')}</span>
+        <span class="nums">大 <span>${v.large_boxes}</span> · 中 <span>${v.medium_boxes}</span> · 小 <span>${v.small_boxes}</span></span>
+      </div>
+    `).join('');
+  }
+
+  // ============================================================
+  // Event wiring
+  // ============================================================
+  // Auth tabs
+  let authMode = 'signin';
+  document.querySelectorAll('.auth-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      authMode = t.dataset.tab;
+      document.querySelectorAll('.auth-tab').forEach(x => x.classList.toggle('active', x === t));
+      document.getElementById('auth-submit').textContent = authMode === 'signin' ? '登入' : '註冊';
+      document.getElementById('auth-error').textContent = '';
+      document.getElementById('auth-info').textContent = '';
+    });
+  });
+  document.getElementById('auth-submit').addEventListener('click', () => handleAuthSubmit(authMode));
+  document.getElementById('auth-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleAuthSubmit(authMode);
+  });
+
+  // Setup view
+  document.getElementById('create-project-btn').addEventListener('click', handleCreateProject);
+  document.getElementById('join-project-btn').addEventListener('click', handleJoinProject);
+  document.getElementById('invite-code-input').addEventListener('input', e => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  });
+  document.getElementById('setup-signout').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+  });
+
+  // Main view
+  document.getElementById('projectName').addEventListener('change', e => {
+    updateProjectField('name', e.target.value.trim() || '我的搬家計畫');
+  });
+  document.getElementById('moveDate').addEventListener('change', e => {
+    updateProjectField('move_date', e.target.value || null);
+    renderCountdown();
+  });
+  document.getElementById('invite-banner').addEventListener('click', async () => {
+    const code = state.project?.invite_code;
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast(`已複製：${code}`);
+    } catch {
+      showToast(`邀請碼：${code}`);
+    }
+  });
+  document.getElementById('addRoomBtn').addEventListener('click', () => {
+    const input = document.getElementById('newRoomInput');
+    const name = input.value.trim();
+    if (!name) return;
+    addRoom(name);
+    input.value = '';
+  });
+  document.getElementById('newRoomInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('addRoomBtn').click();
+  });
+  document.getElementById('historyToggle').addEventListener('click', () => {
+    document.getElementById('historyToggle').classList.toggle('open');
+    document.getElementById('historyList').classList.toggle('open');
+  });
+  document.getElementById('main-signout').addEventListener('click', async () => {
+    if (!confirm('要登出嗎？')) return;
+    await supabase.auth.signOut();
+  });
+
+  // ============================================================
+  // Init
+  // ============================================================
+  (async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    state.session = session;
+
+    supabase.auth.onAuthStateChange((event, newSession) => {
+      state.session = newSession;
+      route();
+    });
+
+    await route();
+  })();
+</script>
+</body>
+</html>
